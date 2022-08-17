@@ -1,3 +1,3 @@
 # caddy-security-rootless
 
-Dockerfile that builds caddy with security plugin rootless. 
+Dockerfile that builds Caddy with security plugin rootless. 

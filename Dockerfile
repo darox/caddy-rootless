@@ -1,46 +1,44 @@
-ARG CADDY_VERSION=2.5.2
-ARG DATA=/data
-ARG CONFIG=/config
+ARG CADDY_BUILDER_VERSION=2.5.2
+ARG CADDY_SECURITY_VERSION=v1.1.14
+ARG ALPINE_VERSION=3.16.2
 
-####################################################################################################
-## Final image
-####################################################################################################
-FROM alpine:3.16.2
+#Pull Caddy-Builder image to build custom version of Caddy with plugins
+FROM caddy:${CADDY_BUILDER_VERSION}-builder AS builder
 
-ARG CADDY_VERSION
-ARG DATA
-ARG CONFIG
+#Build custom version of Caddy with plugins
+RUN xcaddy build \
+    --with github.com/greenpau/caddy-security@${CADDY_SECURITY_VERSION} \
+    --with github.com/greenpau/caddy-trace 
+    
+FROM alpine:${ALPINE_VERSION}
 
-ENV XDG_CONFIG_HOME=${DATA} \
-    XDG_DATA_HOME=${CONFIG}
+COPY --from=builder /usr/bin/caddy /usr/local/bin/caddy
+#Set relative folders
+ENV XDG_CONFIG_HOME=/data \
+    XDG_DATA_HOME=/config
 
+#Add certs and tini
 RUN apk add --no-cache \
+    libc6-compat \
     ca-certificates \
     tini
-
-ADD https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz /tmp/caddy.tar.gz
-RUN tar xvfz /tmp/caddy.tar.gz -C /usr/local/bin caddy; \
-    rm -rf /tmp/caddy.tar.gz; \
-    chmod +x /usr/local/bin/caddy; \
-    caddy version
 
 # Create persistent data directories
 RUN mkdir -p /etc/caddy \
     && mkdir -p /srv \
-    && mkdir -p ${DATA}/caddy \
-    && mkdir -p ${CONFIG}/caddy
+    && mkdir -p /data/caddy \
+    && mkdir -p /config/caddy
 
 # Add default config
-COPY ./Caddyfile /etc/caddy/Caddyfile
-ADD https://raw.githubusercontent.com/caddyserver/dist/master/welcome/index.html /srv/index.html
+ADD https://raw.githubusercontent.com/darox/caddy-security-rootless/main/Caddyfile /etc/caddy/Caddyfile
 
 # Add an unprivileged user and set directory permissions
 RUN adduser --disabled-password --gecos "" --no-create-home caddy \
     && chown -R caddy:caddy /usr/local/bin/caddy \
     && chown -R caddy:caddy /etc/caddy \
     && chown -R caddy:caddy /srv \
-    && chown -R caddy:caddy ${DATA} \
-    && chown -R caddy:caddy ${CONFIG}
+    && chown -R caddy:caddy /data \
+    && chown -R caddy:caddy /config
 
 ENTRYPOINT ["/sbin/tini", "--"]
 
