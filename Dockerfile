@@ -9,7 +9,7 @@ FROM caddy:${CADDY_BUILDER_VERSION}-builder AS builder
 RUN xcaddy build \
     --with github.com/greenpau/caddy-security@${CADDY_SECURITY_VERSION} \
     --with github.com/greenpau/caddy-trace 
-    
+
 FROM alpine:${ALPINE_VERSION}
 
 COPY --from=builder /usr/bin/caddy /usr/local/bin/caddy
@@ -46,6 +46,6 @@ USER caddy
 
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
 
-EXPOSE 8080
+EXPOSE 8080 9090
 
 STOPSIGNAL SIGTERM
